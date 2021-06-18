@@ -444,17 +444,25 @@ return {
 
                         if settings.subsystems ~= nil then -- systeme(s) de notification
                             subSystems = settings.subsystems
+							if settings.outdoor_temp ~= nil then 
+								nightCoolingSubSystems = settings.subsystems
+							end
                             logWrite('le(s) systeme(s) de notification pour '.. device.name .. ' est(sont)  ' .. subSystems)
                         end
 
-
                         if settings.frequency_notifications ~= nil then -- fréquence de notification
                             frequency_notifications = settings.frequency_notifications
+                            if settings.outdoor_temp ~= nil then 
+								nightCoolingNotifications = settings.frequency_notifications
+							end
                             dz.log('la fréquence de notification pour '.. device.name .. ' est de  ' .. settings.frequency_notifications.." minutes")
                         end
 
                         if settings.quiet_hours ~= nil then -- période silencieuse
                             quiet_hours = settings.quiet_hours
+                            if settings.outdoor_temp ~= nil then
+								nightCoolingQuietHours = settings.quiet_hours
+							end
                             logWrite('la période silencieuse de notification pour '.. device.name .. ' est définie entre  ' .. quiet_hours)
                         end
                         
@@ -487,6 +495,7 @@ return {
 						
                         if device.temperature ~= nil and settings.outdoor_temp ~= nil then  -- seuil bas température
                             logWrite(device.name .. ' est définie comme température extérieure avec un seuil fixé à '.. settings.outdoor_temp..'°C')
+							
                         end
 						
                         if device.temperature ~= nil and settings.indoor_temp ~= nil then  -- seuil bas température
@@ -713,9 +722,10 @@ return {
 									logWrite(device.name .. ' est définie comme température extérieure avec un seuil fixé à '.. settings.outdoor_temp..'°C', dz.LOG_INFO)
 									dz.data.outdoorValue.add(round(device.temperature, 2))
 									dz.data.thresholdValue.add(settings.outdoor_temp)
-									nightCoolingNotifications = settings.frequency_notifications
-									nightCoolingQuietHours    = settings.quiet_hours
-									nightCoolingSubSystems    = settings.subSystems
+									--nightCoolingNotifications = settings.frequency_notifications
+									--nightCoolingQuietHours    = settings.quiet_hours
+									--nightCoolingSubSystems    = settings.subSystems
+									logWrite(device.name ..' a comme s/système de notification '..nightCoolingSubSystems, dz.LOG_INFO)
 								end
 								
 								if settings.indoor_temp ~= nil then  -- seuil bas température
@@ -878,16 +888,21 @@ return {
 		if  dz.data.thresholdValue.avg() then
 			avgThreshold	= round(dz.data.thresholdValue.avg(),2)
 			logWrite('la moyenne des seuils est de '..tostring(avgThreshold).."°C", dz.LOG_INFO) 
-		end		
+		end
 		if  avgOutdoor ~= nil and avgIndoor ~= nil and AvgDeltaT ~= nil and avgThreshold ~= nil then
 			 
 			if avgIndoor > (avgOutdoor + AvgDeltaT) and avgOutdoor > avgThreshold then
 				local nightCoolingSubject = "\xE2\x9A\xA0 /!\\ Ouverture des fenetres recommandee /!\\ \xE2\x9A\xA0"				
 				local nightCoolingMessage = 'Ouverture des fenêtres recommandée, la température moyenne ambiante intérieure est supérieure de '..AvgDeltaT..'°C à la temperature extérieure'		
 				dz.helpers.managedNotify(dz, nightCoolingSubject, nightCoolingMessage, notificationTable(nightCoolingSubSystems), nightCoolingNotifications, nightCoolingQuietHours)
+			-- Chrominator 2021-06-17
+			-- Si la température extérieure devient supérieure à celle à l'intérieur, on recommande la fermeture des fenêtres
+			elseif avgIndoor < (avgOutdoor + AvgDeltaT) and avgOutdoor > avgThreshold then
+				local nightCoolingSubject = "\xE2\x9A\xA0 /!\\ Fermeture des fenetres recommandee /!\\ \xE2\x9A\xA0"				
+				local nightCoolingMessage = 'Fermeture des fenêtres recommandée, le rafraîchissement nocturne est terminé'
+				dz.helpers.managedNotify(dz, nightCoolingSubject, nightCoolingMessage, notificationTable(nightCoolingSubSystems), nightCoolingNotifications, nightCoolingQuietHours)
 			end				
 		end
-		
         logWrite(tostring(cnt) .. ' devices scannés.', dz.LOG_INFO)
     end
 }
